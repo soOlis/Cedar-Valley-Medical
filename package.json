@@ -1,0 +1,15 @@
+{
+  "name": "soOlis",
+  "version": "1.0.0",
+  "description": "Cedar Valley Medical",
+  "main": "app.js",
+  "scripts": {
+    "start": "npx nodemon server.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "license": "ISC",
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "latest"
+  }
+}
