@@ -3,25 +3,41 @@ const axios = require('axios');
 module.exports = {
   async post(req, res) {
 
+    const context = req.body.queryResult.outputContexts;
+    console.log("context ", context);
+
+    const refContext = context.find((c) => c.name.includes('botcopy-form-context'));
+
     const {
-      given,
-      family,
-      email,
-      phone,
-      gender,
-      birthdate,
       drNPI,
+      phoneNumber,
+      birthday,
+      email,
+      firstName,
       scheduleDate,
-      ssn
-    } = req.body;
+      ssn,
+      lastName,
+      gender
+    } = refContext.parameters;
+
+    console.log("refContext  ", drNPI,
+      phoneNumber,
+      birthday,
+      email,
+      firstName,
+      scheduleDate,
+      ssn,
+      lastName,
+      gender);
+
 
     // Checking for missing credentials
     const missingFields = [];
-    if (!given) missingFields.push("First Name");
-    if (!family) missingFields.push("Last Name");
+    if (!lastName) missingFields.push("First Name");
+    if (!firstName) missingFields.push("Last Name");
     if (!email) missingFields.push("Contact email");
-    if (!birthdate) missingFields.push("Date of Birth");
-    if (!phone) missingFields.push("Contact Phone");
+    if (!birthday) missingFields.push("Date of Birth");
+    if (!phoneNumber) missingFields.push("Contact Phone");
     if (!drNPI) missingFields.push("Dr NPI");
     if (!scheduleDate) missingFields.push("Schedule Date");
     if (!ssn) missingFields.push("SSN");
@@ -42,14 +58,14 @@ module.exports = {
 
     axios.get(scheduleURL, { headers })
       .then(response => {
-        const scheduleID = response.data?.entry[0]?.resource?.id
+        const scheduleID = response.data && response.data.entry && response.data.entry[0] && response.data.entry[0].resource && response.data.entry[0].resource.id;
 
         const slotURL = `https://connect.healow.com/apps/api/v1/fhir/IFCABD/dstu2/Slot?schedule=${scheduleID}&slot-type=OA&start=&_count=`;
         axios.get(slotURL, { headers })
           .then(response => {
 
+            const slotID = response.data && response.data.entry && response.data.entry[0] && response.data.entry[0].resource && response.data.entry[0].resource.id;
 
-            const slotID = response.data?.entry[0]?.resource?.id
             console.log("sloID", slotID);
             const appointmentURL = `https://connect.healow.com/apps/api/v1/fhir/IFCABD/dstu2/Appointment?`;
             const payload = {
@@ -62,10 +78,10 @@ module.exports = {
                     {
                       "use": "usual",
                       "family": [
-                        family
+                        firstName
                       ],
                       "given": [
-                        given
+                        lastName
                       ],
                       "suffix": [
                         "MSc"
@@ -75,7 +91,7 @@ module.exports = {
                   "telecom": [
                     {
                       "system": "phone",
-                      "value": phone,
+                      "value": phoneNumber,
                       "use": "mobile"
                     },
                     {
@@ -85,7 +101,7 @@ module.exports = {
                     }
                   ],
                   "gender": gender,
-                  "birthDate": birthdate,
+                  "birthDate": birthday,
 
                   "managingOrganization": {
                     "reference": "Organization/f001",
@@ -140,25 +156,105 @@ module.exports = {
                 const responseData = response.data;
 
                 console.log("Appointment Confirmation", responseData);
-                const div = responseData.text.div;
+                // const div = ;
+
+                const div = {
+                  fulfillmentMessages: [
+                    {
+                      payload: {
+                        botcopy: [
+                          {
+                            text: [
+                              {
+                                ssml: `<speak>${responseData.text.div}</speak>`,
+                                displayText: responseData.text.div,
+                                textToSpeech: responseData.text.div,
+                              },
+                            ],
+                          },
+                        ],
+                      },
+                      message: 'payload',
+                    },
+                  ],
+                };
                 return res.status(201).json(div);
               })
               .catch(error => {
                 console.error('Error-1:', error.message);
+                const div = {
+                  fulfillmentMessages: [
+                    {
+                      payload: {
+                        botcopy: [
+                          {
+                            text: [
+                              {
+                                ssml: `<speak>${error.message}</speak>`,
+                                displayText: error.message,
+                                textToSpeech: error.message,
+                              },
+                            ],
+                          },
+                        ],
+                      },
+                      message: 'payload',
+                    },
+                  ],
+                };
 
-                return res.status(400).json({ message: error.message });
+                return res.status(400).json(div);
               });
           })
           .catch(error => {
             console.error('Error-2:', error.message);
+            const div = {
+              fulfillmentMessages: [
+                {
+                  payload: {
+                    botcopy: [
+                      {
+                        text: [
+                          {
+                            ssml: `<speak>${error.message}</speak>`,
+                            displayText: error.message,
+                            textToSpeech: error.message,
+                          },
+                        ],
+                      },
+                    ],
+                  },
+                  message: 'payload',
+                },
+              ],
+            };
 
-            return res.status(400).json({ message: error.message });
+            return res.status(400).json(div);
           });
       })
       .catch(error => {
-        console.error('Error-3:', error.message);
+        const div = {
+          fulfillmentMessages: [
+            {
+              payload: {
+                botcopy: [
+                  {
+                    text: [
+                      {
+                        ssml: `<speak>${error.message}</speak>`,
+                        displayText: error.message,
+                        textToSpeech: error.message,
+                      },
+                    ],
+                  },
+                ],
+              },
+              message: 'payload',
+            },
+          ],
+        };
 
-        return res.status(400).json({ message: error.message });
+        return res.status(400).json(div);
       });
   },
 };
