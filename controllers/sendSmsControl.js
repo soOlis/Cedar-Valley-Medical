@@ -11,12 +11,16 @@ module.exports = {
     const data = req.body;
 
     // data.phone_number
-    if (data && data.sessionInfo && data.sessionInfo.parameters && data.sessionInfo.parameters.user_number) {
-      const phoneNumber = data.sessionInfo.parameters.user_number;
+    if (data && data.sessionInfo && data.sessionInfo.parameters && data.sessionInfo.parameters['phone-number'] && data.fulfillmentInfo && data.fulfillmentInfo.tag && ["billing portal"].includes(data.fulfillmentInfo.tag)) {
+      const phoneNumber = data.sessionInfo.parameters['phone-number'];
+      let body = ""
+      if (data.fulfillmentInfo.tag == "billing portal") {
+        body = "Your payment portal link: https://mypay.poscorp.com/cvmedspcl#/account/login"
+      }
 
       try {
         const message = await twilioClient.messages.create({
-          body: `Your payment portal link: ${portalLink}`, //message to user's number
+          body: body, //message to user's number
           from: process.env.TWILIO_NUMBER, //"TWILIO_PHONE_NUMBER",
           to: phoneNumber,
         });
