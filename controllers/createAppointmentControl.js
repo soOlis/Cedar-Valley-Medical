@@ -4,7 +4,6 @@ module.exports = {
   async post(req, res) {
 
     const context = req.body.queryResult.outputContexts;
-    console.log("context ", context);
 
     const refContext = context.find((c) => c.name.includes('botcopy-form-context'));
 
@@ -15,21 +14,9 @@ module.exports = {
       email,
       firstName,
       scheduleDate,
-      ssn,
       lastName,
       gender
     } = refContext.parameters;
-
-    console.log("refContext  ", drNPI,
-      phoneNumber,
-      birthday,
-      email,
-      firstName,
-      scheduleDate,
-      ssn,
-      lastName,
-      gender);
-
 
     // Checking for missing credentials
     const missingFields = [];
@@ -40,7 +27,6 @@ module.exports = {
     if (!phoneNumber) missingFields.push("Contact Phone");
     if (!drNPI) missingFields.push("Dr NPI");
     if (!scheduleDate) missingFields.push("Schedule Date");
-    if (!ssn) missingFields.push("SSN");
     if (!gender) missingFields.push("Gender");
 
     if (missingFields.length > 0) {
@@ -48,7 +34,7 @@ module.exports = {
         .status(400)
         .json({ error: `Missing credentials: ${missingFields.join(", ")}` });
     }
-
+    
     const scheduleURL = `https://connect.healow.com/apps/api/v1/fhir/IFCABD/dstu2/Schedule?actor=${drNPI}&date=${scheduleDate}&type=none&identifier=none&actor.location=142`;
     const token = 'AA1.U4F2SGVisczY3PEyi9rAzi_1NqoubiCeHsvQdLYyn5zThJNvoDGz2y3cirJocXU3igDBlg33nlj6JfGzE4hcWmUNiAZ6qQnqmZb8WE9ivjJGF-Dwhk1y4vCxUGDpOYalyAh8-PSKvXt2uJA8hEQR65dr08GKh3F8_ENQV-M-QUf4NCvyhuw9llKeZgtAVVjC';
 
@@ -73,7 +59,7 @@ module.exports = {
               "contained": [
                 {
                   "resourceType": "Patient",
-                  "id": ssn,
+                  "id": `${email}-${birthday}`,
                   "name": [
                     {
                       "use": "usual",
