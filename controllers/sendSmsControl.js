@@ -1,29 +1,29 @@
-const twilio = require("twilio");
-require("dotenv").config();
+const sendSMS = require("../Utils/sms");
 
 module.exports = {
   async post(req, res) {
-
-    const accountSid = process.env.ACCOUNT_SID;
-    const authToken = process.env.TOKEN;
     const portalLink = "https://mypay.poscorp.com/cvmedspcl#/account/login";
-    const twilioClient = twilio(accountSid, authToken);
     const data = req.body;
 
     // data.phone_number
-    if (data && data.sessionInfo && data.sessionInfo.parameters && data.sessionInfo.parameters['phone-number'] && data.fulfillmentInfo && data.fulfillmentInfo.tag && ["billing portal"].includes(data.fulfillmentInfo.tag)) {
-      const phoneNumber = data.sessionInfo.parameters['phone-number'];
-      let body = ""
+    if (
+      data &&
+      data.sessionInfo &&
+      data.sessionInfo.parameters &&
+      data.sessionInfo.parameters["phone-number"] &&
+      data.fulfillmentInfo &&
+      data.fulfillmentInfo.tag &&
+      ["billing portal"].includes(data.fulfillmentInfo.tag)
+    ) {
+      const phoneNumber = data.sessionInfo.parameters["phone-number"];
+      let body = "";
       if (data.fulfillmentInfo.tag == "billing portal") {
-        body = "Your payment portal link: https://mypay.poscorp.com/cvmedspcl#/account/login"
+        body =
+          "Your payment portal link: https://mypay.poscorp.com/cvmedspcl#/account/login";
       }
 
       try {
-        const message = await twilioClient.messages.create({
-          body: body, //message to user's number
-          from: process.env.TWILIO_NUMBER, //"TWILIO_PHONE_NUMBER",
-          to: phoneNumber,
-        });
+        await sendSMS(phoneNumber, body);
 
         const response = {
           fulfillment_response: {
