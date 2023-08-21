@@ -22,12 +22,6 @@ export function strExtraxt(inputString) {
   const blockId = blockIdMatch ? blockIdMatch[1] : null;
   const encounterId = encounterIdMatch ? encounterIdMatch[1] : null;
 
-  // Output the extracted information
-  //   console.log("Date:", date);
-  //   console.log("Time:", time);
-  //   console.log("Reference ID:", referenceId);
-  //   console.log("Block ID:", blockId);
-  //   console.log("Encounter ID:", encounterId);
   return {
     date,
     time,

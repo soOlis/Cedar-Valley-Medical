@@ -1,6 +1,8 @@
 const axios = require("axios");
 const { strExtraxt } = require("../Utils/stringExtractor");
 const sendSMS = require("../Utils/sms");
+const connectDB = require("../DB/db");
+const Appointment = require("../models/appointment");
 
 module.exports = {
   async post(req, res) {
@@ -150,26 +152,51 @@ module.exports = {
             axios
               .post(appointmentURL, payload, { headers: headers2 })
 
-              .then((response) => {
-                // Extract the relevant data from the response object
-                const responseData = response.data;
+              .then(async (response) => {
+                try {
+                  // Extract the relevant data from the response object
+                  const responseData = response.data;
 
-                console.log("Appointment Confirmation", responseData);
+                  console.log("Appointment Confirmation", responseData);
 
-                //extract string data from responce
-                const extractedData = strExtraxt(responseData.text.div);
+                  //extract string data from responce
+                  const extractedData = strExtraxt(responseData.text.div);
 
-                const smsBody = `Thank you, ${firstName} Your appointment has been reserved for ${extractedData.date} at ${extractedData.time}.  Please complete the appropriate forms before your visit, which you can find here:
-                 https://cedarvalleygi.com/patient-forms/`;
+                  const smsBody = `Thank you, ${firstName} Your appointment has been reserved for ${extractedData.date} at ${extractedData.time}.  Please complete the appropriate forms before your visit, which you can find here:
+                https://cedarvalleygi.com/patient-forms/`;
 
-                sendSMS(phoneNumber, smsBody)
-                  .then(() => {
-                    return res.status(201);
-                  })
-                  .catch((err) => {
-                    console.log(err);
-                    return res.status(400);
+                  await sendSMS(phoneNumber, smsBody);
+
+                  // return res.status(201);
+                } catch (err) {
+                  return res.status(400);
+                }
+
+                try {
+                  //save data to database
+                  await connectDB();
+
+                  const newAppointment = new Appointment({
+                    drNPI,
+                    phoneNumber,
+                    birthday,
+                    email,
+                    firstName,
+                    lastName,
+                    scheduleDate,
+                    ssn,
+                    gender,
+                    // executed: null,
+                    // executionResponseMessage: null,
                   });
+                  //save data to database and send responce
+                  await newAppointment.save();
+
+                  return res.status(201);
+                } catch (err) {
+                  console.log(err);
+                  return res.status(400);
+                }
               })
               .catch((error) => {
                 console.error("Error-1:", error.message);
