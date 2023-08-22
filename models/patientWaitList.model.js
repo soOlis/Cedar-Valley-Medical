@@ -1,7 +1,7 @@
 const mongoose = require("mongoose");
 const Schema = mongoose.Schema;
 
-const PatientWaitList = new Schema({
+const PatientWaitListSchema = new Schema({
     drNPI: { type: String },
     phoneNumber: { type: String, require: true },
     birthday: { type: Date },
@@ -14,13 +14,8 @@ const PatientWaitList = new Schema({
     },
     scheduleDate: { type: Date },
     ssn: { type: String, require: true },
-
-    type: {
-        type: String,
-    },
-    appointment_date: {
-        type: date,
-    },
+    type: {type: String,},
+    appointment_date: {type: Date,},
     createdAt: {
         type: Date,
         default: Date.now,
@@ -30,4 +25,4 @@ const PatientWaitList = new Schema({
         default: Date.now,
     }
 });
-module.exports = PatientWaitList = mongoose.model("patient_wait_list", PatientWaitList);
+module.exports = PatientWaitList = mongoose.model("patient_wait_list", PatientWaitListSchema);
