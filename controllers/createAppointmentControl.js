@@ -3,6 +3,8 @@ const { strExtraxt } = require("../Utils/stringExtractor");
 const sendSMS = require("../Utils/sms");
 const connectDB = require("../DB/db");
 const Appointment = require("../models/appointment");
+const PatientWaitList = require('../models/patientWaitList.model');
+const { post } = require("../routes/patientWaitList");
 
 module.exports = {
   async post(req, res) {
@@ -22,6 +24,7 @@ module.exports = {
       lastName,
       gender,
     } = refContext.parameters;
+    const vcw_appointment_id="";
 
     const errbody = `Sorry, Your appointment for ${scheduleDate} couldn't be scheduled.`;
 
@@ -50,8 +53,7 @@ module.exports = {
       Authorization: `Bearer ${token}`,
     };
 
-    axios
-      .get(scheduleURL, { headers })
+    axios.get(scheduleURL, { headers })
       .then((response) => {
         const scheduleID =
           response.data &&
@@ -161,7 +163,7 @@ module.exports = {
 
                   //extract string data from responce
                   const extractedData = strExtraxt(responseData.text.div);
-
+                  vcw_appointment_id=extractedData.encounterId;
                   const smsBody = `Thank you, ${firstName} Your appointment has been reserved for ${extractedData.date} at ${extractedData.time}.  Please complete the appropriate forms before your visit, which you can find here:
                 https://cedarvalleygi.com/patient-forms/`;
 
@@ -175,7 +177,7 @@ module.exports = {
                 try {
                   //save data to database
                   await connectDB();
-
+                  const vstatus='BOOKED';
                   const newAppointment = new Appointment({
                     drNPI,
                     phoneNumber,
@@ -186,6 +188,8 @@ module.exports = {
                     scheduleDate,
                     ssn,
                     gender,
+                    vstatus,
+                    vcw_appointment_id
                     // executed: null,
                     // executionResponseMessage: null,
                   });
@@ -223,8 +227,7 @@ module.exports = {
                 return res.status(400);
               });
           });
-      })
-      .catch((error) => {
+      }).catch((error) => {
         sendSMS(phoneNumber, errbody)
           .then(() => {
             return res.status(201);
@@ -235,4 +238,227 @@ module.exports = {
           });
       });
   },
+
+ async cancel(req, res){
+  Appointment.findByIdAndUpdate({ ecw_appointment_id: req.params.appointment_id }, {
+    $set: {
+      status: 'CANCELLED'
+    },
+  },
+    { new: true }, (err, appointment) => {
+      if (err) {
+        res.send(err);
+      } else res.json(appointment);
+    })
+    const currentDate=new Date()
+  await PatientWaitList.find({appointment_date:currentDate}).sort({createdAt:1}).toArray(function(err, data) {
+      if (err){ throw err;}
+      const {
+        drNPI,
+        phoneNumber,
+        birthday,
+        email,
+        firstName,
+        scheduleDate,
+        lastName,
+        gender,
+      }=data;
+      
+    const scheduleURL = `https://connect.healow.com/apps/api/v1/fhir/IFCABD/dstu2/Schedule?actor=${drNPI}&date=${scheduleDate}&type=none&identifier=none&actor.location=142`;
+    const token =
+      "AA1.U4F2SGVisczY3PEyi9rAzi_1NqoubiCeHsvQdLYyn5zThJNvoDGz2y3cirJocXU3igDBlg33nlj6JfGzE4hcWmUNiAZ6qQnqmZb8WE9ivjJGF-Dwhk1y4vCxUGDpOYalyAh8-PSKvXt2uJA8hEQR65dr08GKh3F8_ENQV-M-QUf4NCvyhuw9llKeZgtAVVjC";
+
+    const headers = {
+      Authorization: `Bearer ${token}`,
+    };
+
+    axios.get(scheduleURL, { headers })
+      .then((response) => {
+        const scheduleID =
+          response.data &&
+          response.data.entry &&
+          response.data.entry[0] &&
+          response.data.entry[0].resource &&
+          response.data.entry[0].resource.id;
+
+        const slotURL = `https://connect.healow.com/apps/api/v1/fhir/IFCABD/dstu2/Slot?schedule=${scheduleID}&slot-type=OA&start=&_count=`;
+        axios
+          .get(slotURL, { headers })
+          .then((response) => {
+            const slotID =
+              response.data &&
+              response.data.entry &&
+              response.data.entry[0] &&
+              response.data.entry[0].resource &&
+              response.data.entry[0].resource.id;
+
+            console.log("sloID", slotID);
+            const appointmentURL = `https://connect.healow.com/apps/api/v1/fhir/IFCABD/dstu2/Appointment?`;
+            const payload = {
+              resourceType: "Appointment",
+              contained: [
+                {
+                  resourceType: "Patient",
+                  id: `${email}-${birthday}`,
+                  name: [
+                    {
+                      use: "usual",
+                      family: [firstName],
+                      given: [lastName],
+                      suffix: ["MSc"],
+                    },
+                  ],
+                  telecom: [
+                    {
+                      system: "phone",
+                      value: phoneNumber,
+                      use: "mobile",
+                    },
+                    {
+                      system: "email",
+                      value: email,
+                      use: "home",
+                    },
+                  ],
+                  gender: gender,
+                  birthDate: birthday,
+
+                  managingOrganization: {
+                    reference: "Organization/f001",
+                    display: "Burgers University Medical Centre",
+                  },
+                },
+                {
+                  resourceType: "Coverage",
+                  type: {
+                    coding: [
+                      {
+                        system:
+                          "eCW_insurance_coding_system(Cash/Insurance/Not-Applicable)",
+                        code: "insurance_code",
+                        display: "insurance name",
+                      },
+                    ],
+                    text: "insurance name",
+                  },
+                },
+              ],
+              id: "",
+              status: "proposed",
+              reason: {
+                text: "The reason that this appointment is being scheduled. (e.g. Regular checkup)",
+              },
+              description:
+                "The brief description of the appointment as would be shown on a subject line in a meeting request, or appointment list.",
+              slot: [
+                {
+                  reference: slotID,
+                },
+              ],
+              comment: "Additional comments about the appointment.",
+              participant: [
+                {
+                  actor: {
+                    reference: "Practitioner/1234564789",
+                  },
+                  required: "required",
+                },
+              ],
+            };
+
+            const headers2 = {
+              Authorization: `Bearer ${token}`,
+              "Content-Type": "application/json+fhir",
+            };
+            axios
+              .post(appointmentURL, payload, { headers: headers2 })
+
+              .then(async (response) => {
+                try {
+                  // Extract the relevant data from the response object
+                  const responseData = response.data;
+
+                  console.log("Appointment Confirmation", responseData);
+
+                  //extract string data from responce
+                  const extractedData = strExtraxt(responseData.text.div);
+                  vcw_appointment_id=extractedData.encounterId;
+                  const smsBody = `Thank you, ${firstName} Your appointment has been reserved for ${extractedData.date} at ${extractedData.time}.  Please complete the appropriate forms before your visit, which you can find here:
+                https://cedarvalleygi.com/patient-forms/`;
+
+                  await sendSMS(phoneNumber, smsBody);
+
+                  // return res.status(201);
+                } catch (err) {
+                  return res.status(400);
+                }
+
+                try {
+                  //save data to database
+                  await connectDB();
+                  const vstatus='BOOKED';
+                  const newAppointment = new Appointment({
+                    drNPI,
+                    phoneNumber,
+                    birthday,
+                    email,
+                    firstName,
+                    lastName,
+                    scheduleDate,
+                    ssn,
+                    gender,
+                    vstatus,
+                    vcw_appointment_id
+                    // executed: null,
+                    // executionResponseMessage: null,
+                  });
+                  //save data to database and send responce
+                  await newAppointment.save();
+
+                  return res.status(201);
+                } catch (err) {
+                  console.log(err);
+                  return res.status(400);
+                }
+              })
+              .catch((error) => {
+                console.error("Error-1:", error.message);
+
+                sendSMS(phoneNumber, errbody)
+                  .then(() => {
+                    return res.status(201);
+                  })
+                  .catch((err) => {
+                    console.log(err);
+                    return res.status(400);
+                  });
+              });
+          })
+          .catch((error) => {
+            console.error("Error-2:", error.message);
+
+            sendSMS(phoneNumber, errbody)
+              .then(() => {
+                return res.status(201);
+              })
+              .catch((err) => {
+                console.log(err);
+                return res.status(400);
+              });
+          });
+      }).catch((error) => {
+        sendSMS(phoneNumber, errbody)
+          .then(() => {
+            return res.status(201);
+          })
+          .catch((err) => {
+            console.log(err);
+            return res.status(400);
+          });
+      });
+     
+    });
+
+ }
 };
+

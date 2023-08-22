@@ -14,6 +14,10 @@ const appointmentSchema = new Schema({
   },
   scheduleDate: { type: Date },
   ssn: { type: String, require: true },
+  status: { type: String, require: true, default :'BOOKED' },
+  ecw_appointment_id: {
+    type: String, require:true
+  }
   // executed: { type: Boolean, default: null },
   // executionResponseMessage: { type: String, default: null },
 });
